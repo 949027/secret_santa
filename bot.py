@@ -37,20 +37,66 @@ def start(update, context):
         text=' Организуй тайный обмен подарками, запусти праздничное настроение!',
         reply_markup=markup,
     )
+
+    return 'GET_CONTACTS'
+
+
+def get_contacts(update, context):
+    user = update.message.from_user
+    chat_id = update.effective_message.chat_id
+    user_message = update.message.text
+
+    if user_message != 'Создать игру':
+        return 'START'
+
+    reply_markup = telegram.ReplyKeyboardMarkup([[telegram.KeyboardButton(
+        'Поделиться номером телефона',
+        request_contact=True,
+    )]])
+    context.bot.send_message(
+        chat_id=chat_id,
+        text=' Введите номер телефона или нажмите кнопку',
+        reply_markup=reply_markup,
+    )
+
+    context.user_data['creator_first_name'] = user.first_name
+    context.user_data['creator_username'] = user.username
+
+    #context.user_data['creator_telephone_number'] =
+    return 'TELEPHONE_NUMBER_HANDLER'
+
+
+def telephone_number_handler(update, context):
+    user_input = update.effective_message.text
+    chat_id = update.effective_message.chat_id
+    if update.message.contact is not None:
+        user_phone_number = update.message.contact.phone_number
+        context.user_data['creator_telephone_number'] = user_phone_number
+    else:
+        user_phone_number = update.message.text
+        context.user_data['creator_telephone_number'] = user_phone_number
+    buttons = ['Подтвердить', 'Ввести другой']
+    markup = keyboard_maker(buttons, 1)
+    context.bot.send_message(
+        chat_id=chat_id,
+        text=f'Ваш номер {user_phone_number}?',
+        reply_markup=markup,
+    )
+
     return 'CREATE_GAME'
 
 
 def create_game(update, context):
     chat_id = update.effective_message.chat_id
     user_message = update.message.text
-    if user_message == 'Создать игру':
-        context.bot.send_message(
-            chat_id=chat_id,
-            text='Введите название игры',
-        )
-        return 'GET_GAME_NAME'
-    else:
-        return 'CREATE_GAME'
+    #if user_message == 'Создать игру':
+    context.bot.send_message(
+        chat_id=chat_id,
+        text='Введите название игры',
+    )
+    return 'GET_GAME_NAME'
+    # else:
+    #     return 'CREATE_GAME'
 
 
 def get_game_name(update, context):
@@ -144,6 +190,8 @@ def handle_user_reply(update: Update, context: CallbackContext):
     states_functions = {
         'START': start,
         'CREATE_GAME': create_game,
+        'TELEPHONE_NUMBER_HANDLER': telephone_number_handler,
+        'GET_CONTACTS': get_contacts,
         'GET_GAME_NAME': get_game_name,
         'GET_COST_LIMIT': get_cost_limit,
         'GET_REGISTRATION_PERIOD': get_registration_period,
@@ -164,7 +212,7 @@ def main():
     dispatcher = updater.dispatcher
     dispatcher.add_handler(CommandHandler('start', handle_user_reply))
     dispatcher.add_handler(MessageHandler(Filters.text, handle_user_reply))
-    #dispatcher.add_handler(MessageHandler(Filters.contact, handle_user_reply))
+    dispatcher.add_handler(MessageHandler(Filters.contact, handle_user_reply))
     #dispatcher.add_handler(MessageHandler(Filters.location, handle_user_reply))
     #dispatcher.add_handler(CallbackQueryHandler(handle_user_reply))
     updater.start_polling()
