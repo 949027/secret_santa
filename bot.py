@@ -40,10 +40,20 @@ def keyboard_maker(buttons, number):
 
 
 def start(update, context):
+    chat_id = update.effective_message.chat_id
     create_test_game(context)
     game_id = update.message.text[7:]
     if game_id:
+        print('game_id', game_id)
         context.user_data['game_id'] = game_id
+        buttons = ['Продолжить']
+        markup = keyboard_maker(buttons, 1)
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=' Вы присоединились к игре! Поздравляем!',
+            reply_markup=markup,
+        )
+        return 'SHOW_GAME_INFO'
     chat_id = update.effective_message.chat_id
 
     buttons = ['Создать игру', 'Вступить в игру']
@@ -91,7 +101,7 @@ def get_player_name(update, context):
     markup = keyboard_maker(buttons, 1)
     context.bot.send_message(
         chat_id=chat_id,
-        text=' Введи свой виш-лист по одной вещи\n'
+        text=' Введи свой список желаний по одной вещи\n'
              'Когда закончишь - нажми кнопку',
         reply_markup=markup,
     )
@@ -104,9 +114,33 @@ def get_wish_list(update, context):
     chat_id = update.effective_message.chat_id
     user_message = update.message.text
     if user_message == 'Завершить':
-        pass
+        context.bot.send_message(
+            chat_id=chat_id,
+            text='Теперь напиши письмо своему Санте',
+        )
+        return 'GET_LETTER_FOR_SANTA'
     context.user_data['wish_list'].append(user_message)
     print(context.user_data['wish_list'])
+    return 'GET_WISH_LIST'
+
+
+def get_letter_for_santa(update, context):
+    user = update.message.from_user
+    chat_id = update.effective_message.chat_id
+    user_message = update.message.text
+    context.user_data['letter'] = user_message
+    buttons = ['Создать игру', 'Вступить в игру']
+    markup = keyboard_maker(buttons, 2)
+    context.bot.send_message(
+        chat_id=chat_id,
+        text=f'Превосходно, ты в игре! {context.user_data["departure_date"]}'
+             ' мы проведем жеребьевку и ты узнаешь имя и контакты своего '
+             'тайного друга. Ему и нужно будет подарить подарок!',
+        reply_markup=markup,
+    )
+    return 'SELECT_BRANCH'
+
+
 
 def check_game(update, context):
     user = update.message.from_user
@@ -143,6 +177,11 @@ def show_game_info(update, context):
              f'Период регистрации до: {context.user_data["registration_period"]}\n'
              f'Дата отправки подарков: {context.user_data["departure_date"]}'
     )
+    context.bot.send_message(
+        chat_id=chat_id,
+        text=' Какое будет твоё имя в игре?',
+    )
+    return 'GET_PLAYER_NAME'
 
 
 def get_contact(update, context):
@@ -167,26 +206,6 @@ def get_contact(update, context):
     return 'GET_GAME_NAME'
 
 
-# def telephone_number_handler(update, context):
-#     user_input = update.effective_message.text
-#     chat_id = update.effective_message.chat_id
-#     if update.message.contact is not None:
-#         user_phone_number = update.message.contact.phone_number
-#         context.user_data['creator_telephone_number'] = user_phone_number
-#     else:
-#         user_phone_number = update.message.text
-#         context.user_data['creator_telephone_number'] = user_phone_number
-#     buttons = ['Подтвердить', 'Ввести другой']
-#     markup = keyboard_maker(buttons, 1)
-#     context.bot.send_message(
-#         chat_id=chat_id,
-#         text=f'Ваш номер {user_phone_number}?',
-#         reply_markup=markup,
-#     )
-#
-#     return 'CREATE_GAME'
-
-
 def create_game(update, context):
     chat_id = update.effective_message.chat_id
     user_message = update.message.text
@@ -206,7 +225,7 @@ def get_game_name(update, context):
     markup = keyboard_maker(buttons, 3)
     context.bot.send_message(
         chat_id=chat_id,
-        text='Введите ограничение стоимости подарка'
+        text='Введите ограничение стоимости подарка '
              'или нажмите одну из кнопок',
         reply_markup=markup,
     )
@@ -306,6 +325,8 @@ def handle_user_reply(update: Update, context: CallbackContext):
         'CHECK_GAME': check_game,
         'GET_PLAYER_NAME': get_player_name,
         'GET_WISH_LIST': get_wish_list,
+        'GET_LETTER_FOR_SANTA': get_letter_for_santa,
+        'SHOW_GAME_INFO': show_game_info,
     }
 
     state_handler = states_functions[user_state]
