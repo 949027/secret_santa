@@ -152,7 +152,7 @@ def get_letter_for_santa(update, context):
 def check_telephone_number(number):
     try:
         parsed_number = phonenumbers.parse(number)
-        if phonenumbers.is_possible_number(parsed_number):
+        if phonenumbers.is_valid_number(parsed_number):
             correct_number = f'+{parsed_number.country_code}' \
                              f'{parsed_number.national_number}'
             return correct_number
@@ -168,17 +168,14 @@ def check_game(update, context):
     print(int(user_message))
     print(int(context.user_data.get('game_id')))
     if int(user_message) == int(context.user_data.get('game_id')): #проверка есть ли игра с таким id
-        reply_markup = telegram.ReplyKeyboardMarkup([[telegram.KeyboardButton(
-            'Поделиться номером телефона',
-            request_contact=True,
-        )]])
-
+        buttons = ['Продолжить']
+        markup = keyboard_maker(buttons, 1)
         context.bot.send_message(
             chat_id=chat_id,
-            text='Введи свой номер телефона или нажми кнопку',
-            reply_markup=reply_markup,
+            text=' Вы присоединились к игре! Поздравляем!',
+            reply_markup=markup,
         )
-        return 'GET_PLAYER_CONTACT'
+        return 'SHOW_GAME_INFO'
     else:
         buttons = ['Создать игру', 'Вступить в игру']
         markup = keyboard_maker(buttons, 2)
@@ -199,11 +196,17 @@ def show_game_info(update, context):
              f'Период регистрации до: {context.user_data["registration_period"]}\n'
              f'Дата отправки подарков: {context.user_data["departure_date"]}'
     )
+    reply_markup = telegram.ReplyKeyboardMarkup([[telegram.KeyboardButton(
+        'Поделиться номером телефона',
+        request_contact=True,
+    )]])
+
     context.bot.send_message(
         chat_id=chat_id,
-        text=' Какое будет твоё имя в игре?',
+        text='Введи свой номер телефона или нажми кнопку',
+        reply_markup=reply_markup,
     )
-    return 'GET_PLAYER_NAME'
+    return 'GET_PLAYER_CONTACT'
 
 
 def get_creator_contact(update, context):
@@ -214,7 +217,27 @@ def get_creator_contact(update, context):
         context.user_data['creator_telephone_number'] = user_phone_number
     else:
         user_phone_number = update.message.text
+        correct_phone_number = check_telephone_number(user_phone_number)
+        if not correct_phone_number:
+            reply_markup = telegram.ReplyKeyboardMarkup([[telegram.KeyboardButton(
+                'Поделиться номером телефона',
+                request_contact=True,
+            )]])
+
+            context.bot.send_message(
+                chat_id=chat_id,
+                text='Неверно введен номер!\n'
+                     'Введи свой номер телефона в формате '
+                     '"+7 (123) 456-78-90" или нажми кнопку',
+                reply_markup=reply_markup,
+            )
+            return 'GET_CREATOR_CONTACT'
         context.user_data['creator_telephone_number'] = user_phone_number
+        if correct_phone_number != user_phone_number:
+            context.bot.send_message(
+                chat_id=chat_id,
+                text=f'Ваш номер телефона: {correct_phone_number}',
+            )
 
     context.user_data['creator_first_name'] = user.first_name
     context.user_data['creator_username'] = user.username
@@ -319,7 +342,7 @@ def get_registration_period(update, context):
         context.bot.send_message(
             chat_id=chat_id,
             text='Неверная дата!\n'
-                 'Введи дату в формате ДД-ММ-ГГГГ, например - 31-12-2021',
+                 'Введи дату в формате ДД-ММ-ГГГГ, например 31-12-2021',
         )
         return 'GET_REGISTRATION_PERIOD'
 
